@@ -27,9 +27,13 @@ class Ising:
         '''Check two states are equal'''
         return np.array_equal(x, y)
 
-    def randomness(self, t, key, k):
+    def leq(self, x, y):
+        '''Check partial order'''
+        return bool(np.all(x <= y))
+
+    def randomness(self, depth, key, k):
         '''Get the randomness for k steps'''
-        rng = np.random.Generator(np.random.Philox(key = key, counter = t))
+        rng = np.random.Generator(np.random.Philox(key = key, counter = depth))
         return rng.integers(0, self.n, k), rng.random(k)
 
     def apply(self, state, r):
