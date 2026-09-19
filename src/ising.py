@@ -3,7 +3,7 @@ Ising model. So far only set up for LxL torus lattice.
 '''
 
 import numpy as np
-from lattice.lattice import Lattice
+from src.lattice import Lattice
 
 class Ising:
     def __init__(self, lattice: Lattice, beta, h = 0.0):
@@ -17,12 +17,12 @@ class Ising:
 
     def bottom(self):
         '''Lowest state in partial order'''
-        return -np.ones((self.n,))
+        return -np.ones(self.n, dtype = np.int8)
     
     def top(self):
         '''Highest state in partial order'''
-        return np.ones((self.n,))
-
+        return np.ones(self.n, dtype = np.int8)
+    
     def equal(self, x, y):
         '''Check two states are equal'''
         return np.array_equal(x, y)
@@ -39,7 +39,7 @@ class Ising:
         '''
         state = state.copy()
         sites, unifs = r
-        for v, u in sites, unifs:
+        for v, u in zip(sites, unifs):
             S = state[self.lattice.nbr[v]].sum()
             p = self.table[(S + 4) // 2]
             state[v] = 1 if u <= p else -1
