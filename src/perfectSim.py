@@ -3,8 +3,7 @@ CFTP algorithm.
 '''
 
 import numpy as np
-import random
-from baseModel import BaseModel
+from src.baseModel import BaseModel
 
 def cftp(model: BaseModel, B: int = 1, k: int = 32, D_init: int = 1):
     '''
@@ -17,6 +16,7 @@ def cftp(model: BaseModel, B: int = 1, k: int = 32, D_init: int = 1):
     samples = np.zeros((B, model.n), dtype=np.int8)
 
     D = D_init
+    safe_counter = 1
 
     while active.size > 0:
         A = active.size
@@ -27,10 +27,12 @@ def cftp(model: BaseModel, B: int = 1, k: int = 32, D_init: int = 1):
         states[A:] = model.bottom
 
         for d in range(D, 0, -1):
+            safe_counter = d * k * 1000 # RNG must be sufficiently spaced to ensure independence
+
             for i in range(A): # In future need to change to apply_batch that acts on the whole (2B,n) array at once
                 key = keys[active[i]]
 
-                r = model.randomness(d, key, k)
+                r = model.randomness(safe_counter, key, k)
 
                 states[i] = model.apply(states[i], r)
                 states[i + A] = model.apply(states[i + A], r)

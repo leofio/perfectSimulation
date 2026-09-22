@@ -19,10 +19,12 @@ class Ising(BaseModel):
     def n(self):
         return self.lattice.n_sites
 
+    @property
     def bottom(self):
         '''Lowest state in partial order'''
         return -np.ones(self.n, dtype = np.int8)
-    
+
+    @property
     def top(self):
         '''Highest state in partial order'''
         return np.ones(self.n, dtype = np.int8)
