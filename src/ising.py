@@ -3,18 +3,21 @@ Ising model. So far only set up for LxL torus lattice.
 '''
 
 import numpy as np
-from lattice import Lattice
-from baseModel import BaseModel
+from src.lattice import Lattice
+from src.baseModel import BaseModel
 
 class Ising(BaseModel):
     def __init__(self, lattice: Lattice, beta, h = 0.0):
         self.lattice = lattice
-        self.n = lattice.n_sites
         self.beta = beta
         self.h = h
         self.table = np.array([
             1 / (1 + np.exp(-2 * (beta * S + h))) for S in (-4, -2, 0, 2, 4)
         ])
+
+    @property
+    def n(self):
+        return self.lattice.n_sites
 
     def bottom(self):
         '''Lowest state in partial order'''
