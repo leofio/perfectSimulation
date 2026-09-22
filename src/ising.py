@@ -3,9 +3,10 @@ Ising model. So far only set up for LxL torus lattice.
 '''
 
 import numpy as np
-from src.lattice import Lattice
+from lattice import Lattice
+from baseModel import BaseModel
 
-class Ising:
+class Ising(BaseModel):
     def __init__(self, lattice: Lattice, beta, h = 0.0):
         self.lattice = lattice
         self.n = lattice.n_sites
