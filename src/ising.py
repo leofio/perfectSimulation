@@ -37,21 +37,46 @@ class Ising(BaseModel):
         '''Check partial order'''
         return bool(np.all(x <= y))
 
-    def randomness(self, depth, key, k):
-        '''Get the randomness for k steps'''
-        rng = np.random.Generator(np.random.Philox(key = key, counter = depth))
-        return rng.integers(0, self.n, k), rng.random(k)
+    def randomness(self, depth, keys, k):
+        '''
+        Get the randomness for k steps over a batch of keys.
+        keys: (batch_size,) array of seed keys
+        Returns sites and unifs of shape (batch_size, k)
+        '''
+        batch_size = len(keys)
+        sites = np.empty((batch_size, k), dtype=np.int32)
+        unifs = np.empty((batch_size, k), dtype=np.float64)
 
-    def apply(self, state, r):
+        for i, key in enumerate(keys):
+            rng = np.random.Generator(np.random.Philox(seed=key, counter=depth))
+            sites[i] = rng.integers(0, self.n, k)
+            unifs[i] = rng.random(k)
+
+        return sites, unifs
+
+    def apply(self, states, r):
         '''
-        One batch of k state updates, deterministic in (state, r)
-        k is determined by the shape of r which comes from model.randomness
+        One batch of k state updates.
+        states: (batch_size, n)
+        r: Tuple of sites, unifs each of shape (batch_size, k)
         '''
-        state = state.copy()
+        states = states.copy()
         sites, unifs = r
-        for v, u in zip(sites, unifs):
-            S = state[self.lattice.nbr[v]].sum()
+        batch_size, k = sites.shape
+
+        batch_indices = np.arange(batch_size)
+
+        for step in range(k):
+            v = sites[:, step]
+            u = unifs[:, step]
+
+            nbrs = self.lattice.nbr[v]
+            neighbour_states = states[batch_indices[:, None], nbrs]
+
+            S = neighbour_states.sum(axis=1)
             p = self.table[(S + 4) // 2]
-            state[v] = 1 if u <= p else -1
-        return state
+
+            states[batch_indices, v] = np.where(u <= p, 1, -1)
+
+        return states
     
