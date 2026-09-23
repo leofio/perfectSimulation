@@ -4,7 +4,7 @@ Ro-CFTP algorithm.
 
 import numpy as np
 from typing import Optional, Tuple
-from src.baseModel import BaseModel
+from src.models.baseModel import BaseModel
 
 def _simulate_block(
     model: BaseModel, 
@@ -31,15 +31,48 @@ def _simulate_block(
 
     return is_coalesced, states, stream_counter + k
 
-    
+def _calibrate_block_size(model: BaseModel, target_prob: float = 0.5, n_trials: int = 20):
+    '''
+    Estimates the optimal block size k for ro_cftp.
+    '''
+    coupling_times = np.zeros(n_trials, dtype=int)
 
-def rocftp_fixed(model: BaseModel, k: int, B: int =1, key: int = 1) -> np.ndarray:
+    calib_counter = 1000000
+    calib_key = np.array([999])
+
+    chunk_size = model.n
+
+    for i in range(n_trials):
+        states =  np.array((model.top, model.bottom))
+        steps = 0
+
+        while True:
+            sites, unifs = model.randomness(calib_counter, calib_key, chunk_size)
+            calib_counter += chunk_size
+
+            r = (np.vstack((sites, sites))), (np.vstack((unifs, unifs)))
+            states = model.apply(states, r)
+            steps += chunk_size
+
+            if model.equal(states[0], states[1]):
+                coupling_times[i] = steps
+                break
+
+    optimal_k = int(np.percentile(coupling_times, target_prob * 100))
+
+    return max(optimal_k, model.n)
+
+
+def rocftp_fixed(model: BaseModel, k: Optional[int] = None, B: int =1, key: int = 1) -> np.ndarray:
     '''
     Read-only CFTP algorithm with fixed block sizes.
     Produces B exact samples using stricly forward stream of randomness.
 
     k: Block size. Recommended large enough that P(coalescence in K steps) > 0.
     '''
+    if k is None:
+        k = _calibrate_block_size(model)
+
     samples = np.zeros((B, model.n), dtype=np.int8)
     stream_counter = 1
 

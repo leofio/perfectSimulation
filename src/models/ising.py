@@ -4,7 +4,7 @@ Ising model. So far only set up for LxL torus lattice.
 
 import numpy as np
 from src.lattice import Lattice
-from src.baseModel import BaseModel
+from src.models.baseModel import BaseModel
 
 class Ising(BaseModel):
     def __init__(self, lattice: Lattice, beta, h = 0.0):

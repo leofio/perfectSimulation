@@ -6,7 +6,7 @@ import random
 import numpy as np
 import pytest
 from src.lattice import torus
-from src.ising import Ising
+from src.models.ising import Ising
 
 @pytest.fixture
 def ising_model():

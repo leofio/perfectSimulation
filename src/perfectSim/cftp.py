@@ -3,7 +3,7 @@ CFTP algorithm.
 '''
 
 import numpy as np
-from src.baseModel import BaseModel
+from src.models.baseModel import BaseModel
 
 def cftp(model: BaseModel, B: int = 1, k: int = 32, D_init: int = 1):
     '''
