@@ -12,6 +12,21 @@ class BaseModel(ABC):
         '''Number of sites in the system.'''
         pass
 
+    @abstractmethod
+    def randomness(self, depth: int, key: int, k: int):
+        '''Shared randomness for k steps'''
+        pass
+
+    @abstractmethod
+    def apply(self, state: np.ndarray, r) -> np.ndarray:
+        '''Apply transitions to the state with randomness r'''
+        pass
+
+    def equal(self, x: np.ndarray, y: np.ndarray) -> bool:
+        '''Check if two states are equal'''
+        return np.array_equal(x, y)
+
+class MonotoneModel(BaseModel):
     @property
     @abstractmethod
     def bottom(self) -> np.ndarray:
@@ -25,20 +40,6 @@ class BaseModel(ABC):
         pass
 
     @abstractmethod
-    def randomness(self, depth: int, key: int, k: int):
-        '''Shared randomness for k steps'''
-        pass
-
-    @abstractmethod
-    def apply(self, state: np.ndarray, r) -> np.ndarray:
-        '''Apply transitions to the state with randomness r'''
-        pass
-
-    @abstractmethod
     def leq(self, x: np.ndarray, y: np.ndarray) -> bool:
         '''Check the partial order, x<=y'''
         pass
-
-    def equal(self, x: np.ndarray, y: np.ndarray) -> bool:
-        '''Check if two states are equal'''
-        return np.array_equal(x, y)

@@ -3,9 +3,9 @@ CFTP algorithm.
 '''
 
 import numpy as np
-from src.models.baseModel import BaseModel
+from src.models.baseModel import MonotoneModel
 
-def cftp(model: BaseModel, B: int = 1, k: int = 32, D_init: int = 1):
+def monotone_cftp(model: MonotoneModel, B: int = 1, k: int = 32, D_init: int = 1):
     '''
     Perform CFTP for given model to produce B samples
     samples from the stationary dist

@@ -1,19 +1,25 @@
 '''
-Ising model. So far only set up for LxL torus lattice.
+Ising model.
 '''
 
 import numpy as np
-from src.lattice import Lattice
-from src.models.baseModel import BaseModel
+from src.lattice import Lattice, FREE
+from src.models.baseModel import MonotoneModel
 
-class Ising(BaseModel):
+class Ising(MonotoneModel):
     def __init__(self, lattice: Lattice, beta, h = 0.0):
         self.lattice = lattice
         self.beta = beta
         self.h = h
         self.table = np.array([
-            1 / (1 + np.exp(-2 * (beta * S + h))) for S in (-4, -2, 0, 2, 4)
+            1 / (1 + np.exp(-2 * (beta * S + h))) for S in range(-lattice.max_degree, lattice.max_degree + 1)
         ])
+
+        b = (lattice.boundary if lattice.boundary is not None
+             else np.full(lattice.n_ghost_lat, FREE, dtype=np.int8))
+        assert np.all((b == FREE) | (b == 1) | (b == -1)), 'Ising boundary must be +-1 or FREE'
+        self.bvals = np.zeros(self.n + lattice.n_ghost_lat, dtype=np.int8)
+        self.bvals[self.n:] = np.where(b==FREE, 0, b).astype(np.int8)
 
     @property
     def n(self):
@@ -60,23 +66,25 @@ class Ising(BaseModel):
         states: (batch_size, n)
         r: Tuple of sites, unifs each of shape (batch_size, k)
         '''
-        states = states.copy()
         sites, unifs = r
         batch_size, k = sites.shape
 
         batch_indices = np.arange(batch_size)
+
+        padded = np.empty((batch_size, self.n + self.lattice.n_ghost_lat), dtype=np.int8)
+        padded[:, :self.n] = states
+        padded[:, self.n:] = self.bvals[self.n:]
 
         for step in range(k):
             v = sites[:, step]
             u = unifs[:, step]
 
             nbrs = self.lattice.nbr[v]
-            neighbour_states = states[batch_indices[:, None], nbrs]
+            neighbour_states = padded[batch_indices[:, None], nbrs]
 
-            S = neighbour_states.sum(axis=1)
-            p = self.table[(S + 4) // 2]
+            S = neighbour_states.sum(axis=1, dtype=np.int32)
+            p = self.table[S + self.lattice.max_degree]
+            padded[batch_indices, v] = np.where(u <= p, 1, -1)
 
-            states[batch_indices, v] = np.where(u <= p, 1, -1)
-
-        return states
+        return padded[:, :self.n]
     
