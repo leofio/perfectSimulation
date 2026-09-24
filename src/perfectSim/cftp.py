@@ -5,12 +5,12 @@ CFTP algorithm.
 import numpy as np
 from src.models.baseModel import MonotoneModel
 
-def monotone_cftp(model: MonotoneModel, B: int = 1, k: int = 32, D_init: int = 1):
+def monotone_cftp(model: MonotoneModel, B: int = 1, seed: int = None, k: int = 32, D_init: int = 1):
     '''
     Perform CFTP for given model to produce B samples
     samples from the stationary dist
     '''
-    base_sequence = np.random.SeedSequence()
+    base_sequence = np.random.SeedSequence(seed)
     keys = np.array(base_sequence.spawn(B))
 
     active = np.arange(B)

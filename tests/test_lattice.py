@@ -4,7 +4,7 @@ Test Lattice dataclass and torus construction
 
 import numpy as np
 import pytest
-from src.lattice import Lattice, torus
+from src.lattice import Lattice, torus, grid, triangular
 
 def test_size_and_shape():
     lat = torus(4)
@@ -35,3 +35,17 @@ def test_rectangular():
     lat = torus(3, 5)
     assert lat.n_sites == 15
     assert lat.nbr.shape == (15, 4)
+
+def test_no_boundary():
+    tor = torus(3)
+    square = grid(3)
+
+    assert tor.n_boundary == 0
+    assert square.n_boundary == 0
+
+def test_boundary():
+    square = grid(3, ghosts=True)
+    tri = triangular(4, ghosts=True)
+
+    assert square.n_boundary == 12
+    assert tri.n_boundary == 18

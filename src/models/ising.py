@@ -7,19 +7,23 @@ from src.lattice import Lattice, FREE
 from src.models.baseModel import MonotoneModel
 
 class Ising(MonotoneModel):
-    def __init__(self, lattice: Lattice, beta, h = 0.0):
+    def __init__(self, lattice: Lattice, beta, h = 0.0, boundary=None):
         self.lattice = lattice
+
+        assert beta >=0, 'monotone Ising model requites beta>=0'
         self.beta = beta
         self.h = h
         self.table = np.array([
             1 / (1 + np.exp(-2 * (beta * S + h))) for S in range(-lattice.max_degree, lattice.max_degree + 1)
         ])
 
-        b = (lattice.boundary if lattice.boundary is not None
-             else np.full(lattice.n_ghost_lat, FREE, dtype=np.int8))
-        assert np.all((b == FREE) | (b == 1) | (b == -1)), 'Ising boundary must be +-1 or FREE'
-        self.bvals = np.zeros(self.n + lattice.n_ghost_lat, dtype=np.int8)
-        self.bvals[self.n:] = np.where(b==FREE, 0, b).astype(np.int8)
+        boundary = boundary or {}
+        assert all(s in (-1, 1) for s in boundary.values()), "Ising boundary must be +-1"
+        assert all(self.n <= g < lattice.null for g in boundary), 'boundary keys must be ghost ids'
+        self.n_ext = lattice.n_boundary + 1
+        self.bvals = np.zeros(self.n_ext, dtype=np.int8)
+        for g, s in boundary.items():
+            self.bvals[g - self.n] = s
 
     @property
     def n(self):
@@ -71,9 +75,9 @@ class Ising(MonotoneModel):
 
         batch_indices = np.arange(batch_size)
 
-        padded = np.empty((batch_size, self.n + self.lattice.n_ghost_lat), dtype=np.int8)
+        padded = np.empty((batch_size, self.n + self.n_ext), dtype=np.int8)
         padded[:, :self.n] = states
-        padded[:, self.n:] = self.bvals[self.n:]
+        padded[:, self.n:] = self.bvals
 
         for step in range(k):
             v = sites[:, step]

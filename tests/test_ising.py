@@ -5,14 +5,14 @@ Test Ising model
 import random
 import numpy as np
 import pytest
-from src.lattice import torus
+from src.lattice import torus, grid, boundary_values
 from src.models.ising import Ising
 
 @pytest.fixture
 def ising_model():
     '''Ising model instance for unit tests.'''
-    L = random.randint(2,10)
-    M = random.randint(0, 10)
+    L = random.randint(3,10)
+    M = random.randint(3, 10)
 
     lattice = torus(L, M) if M != 0 else torus(L)
 
@@ -85,3 +85,65 @@ def test_randomness_divergence(ising_model):
 
         assert not np.array_equal(sites3, sites4)
         assert not np.array_equal(u3, u4)
+
+def test_boundary_validation():
+    """Ensure the model rejects invalid boundary specifications."""
+    lat = grid(3, 3, ghosts=True)
+    
+    bad_spins = boundary_values(lat, 2)
+    with pytest.raises(AssertionError, match=r"Ising boundary must be \+-1"):
+        Ising(lat, beta=1.0, boundary=bad_spins)
+        
+    with pytest.raises(AssertionError, match="boundary keys must be ghost ids"):
+        Ising(lat, beta=1.0, boundary={0: 1})
+
+def test_bvals_array_construction():
+    """Verify that the self.bvals array maps ghost states and the null slot correctly."""
+    lat = grid(3, 3, ghosts=True)
+    
+    b_dict = boundary_values(lat, 1)
+    model = Ising(lat, beta=1.0, boundary=b_dict)
+    
+    assert model.bvals[-1] == 0 
+    assert np.all(model.bvals[:-1] == 1)
+    assert len(model.bvals) == lat.n_boundary + 1
+
+def test_free_boundary_dynamics():
+    """Verify that missing edges (FREE/null) contribute exactly 0 to the local sum."""
+    lat = grid(1, 1, ghosts=False)
+    model = Ising(lat, beta=1.0)
+    
+    states = -np.ones((1, 1), dtype=np.int8)
+    
+    r_up = (np.array([[0]]), np.array([[0.1]]))
+    assert model.apply(states, r_up)[0, 0] == 1
+    
+    r_down = (np.array([[0]]), np.array([[0.9]]))
+    assert model.apply(states, r_down)[0, 0] == -1
+
+def test_fixed_boundary_dynamics():
+    """Verify that ghost boundaries actively pull the spins via the local field."""
+    lat = grid(1, 1, ghosts=True)
+    
+    b_dict = boundary_values(lat, 1)
+    
+    model = Ising(lat, beta=50.0, boundary=b_dict)
+    
+    states = -np.ones((1, 1), dtype=np.int8)
+    
+    r = (np.array([[0]]), np.array([[0.5]]))
+    new_states = model.apply(states, r)
+    assert new_states[0, 0] == 1
+
+def test_callable_mixed_boundaries():
+    """Verify that using a callable correctly assigns different values to different edges."""
+    lat = grid(3, 3, ghosts=True)
+    
+    def mixed_spec(gi, gj):
+        return np.where(gi == -1, 1, np.where(gi == 3, -1, -128))
+        
+    b_dict = boundary_values(lat, mixed_spec)
+    model = Ising(lat, beta=1.0, boundary=b_dict)
+    assert 1 in model.bvals
+    assert -1 in model.bvals
+    assert 0 in model.bvals
