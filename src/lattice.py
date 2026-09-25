@@ -24,8 +24,8 @@ class Lattice:
     def __post_init__(self):
         if self.is_bipartite:
             assert self.colour is not None, 'A 2-colouring array is required for a bipartite graph.'
-            assert len(self.colour) == self.n_sites, f"Color array length ({len(self.color)}) must match number of sites ({self.n_sites})."
-            assert set(np.unique(self.color)).issubset({0, 1}), "Color array must only contain 0s and 1s."
+            assert len(self.colour) == self.n_sites, f"Color array length ({len(self.colour)}) must match number of sites ({self.n_sites})."
+            assert set(np.unique(self.colour)).issubset({0, 1}), "Color array must only contain 0s and 1s."
 
         if self.edges is not None:
             assert self.edges.shape == (self.n_edges, 2)
@@ -104,6 +104,7 @@ def torus(L, M=None) -> Lattice:
         colour = np.array([(i + j) % 2 for i in range(L) for j in range(M)], dtype=np.int8)
     else:
         is_bipartite = False
+        colour = None
     return _grid(L, M, SQUARE, is_bipartite, colour=colour, periodic=True)
 
 def grid(L, M=None, ghosts=False):
