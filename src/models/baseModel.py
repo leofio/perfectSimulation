@@ -4,12 +4,16 @@ Abstract base class for other model to build on.
 
 from abc import ABC, abstractmethod
 import numpy as np
+from src.lattice import Lattice
 
 class BaseModel(ABC):
+    def __init__(self, lattice: Lattice):
+        self.lattice = lattice
+
     @property
     @abstractmethod
     def n(self) -> int:
-        '''Number of sites in the system.'''
+        '''Number of variables in the system.'''
         pass
 
     @abstractmethod
@@ -27,6 +31,9 @@ class BaseModel(ABC):
         return np.array_equal(x, y)
 
 class MonotoneModel(BaseModel):
+    def __init__(self, lattice):
+        super().__init__(lattice)
+
     @property
     @abstractmethod
     def bottom(self) -> np.ndarray:

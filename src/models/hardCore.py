@@ -1,24 +1,23 @@
 '''
-Ising model.
+Hard-Core gas model.
 '''
 
 import numpy as np
 from src.lattice import Lattice
 from src.models.baseModel import MonotoneModel
 
-class Ising(MonotoneModel):
-    def __init__(self, lattice: Lattice, beta, h = 0.0, boundary=None):
+class HardCoreBipartite(MonotoneModel):
+    def __init__(self, lattice: Lattice, activity: float, boundary = None):
         super().__init__(lattice)
 
-        assert beta >=0, 'monotone Ising model requites beta>=0'
-        self.beta = beta
-        self.h = h
-        self.table = np.array([
-            1 / (1 + np.exp(-2 * (beta * S + h))) for S in range(-lattice.max_degree, lattice.max_degree + 1)
-        ])
+        assert activity > 0, 'Hard-core model requires activity > 0'
+        self.activity = activity
+        self.p = activity / (1.0 + activity)
+
+        assert lattice.is_bipartite, 'HardCoreBipartite model requires a bipartite graph'
 
         boundary = boundary or {}
-        assert all(s in (-1, 1) for s in boundary.values()), "Ising boundary must be +-1"
+        assert all(s in (0, 1) for s in boundary.values()), 'Hard-core boudnary must be 0s or 1s'
         assert all(self.n <= g < lattice.null for g in boundary), 'Boundary keys must be ghost ids'
         self.n_ext = lattice.n_boundary + 1
         self.bvals = np.zeros(self.n_ext, dtype=np.int8)
@@ -26,22 +25,23 @@ class Ising(MonotoneModel):
             self.bvals[g - self.n] = s
 
     @property
-    def n(self):
-        return self.lattice.n_sites
+    def n(self): return self.lattice.n_sites
 
     @property
     def bottom(self):
-        '''Lowest state in partial order'''
-        return -np.ones(self.n, dtype = np.int8)
+        return self.lattice.colour
 
     @property
     def top(self):
-        '''Highest state in partial order'''
-        return np.ones(self.n, dtype = np.int8)
+        return 1 - self.lattice.colour
 
-    def leq(self, x, y):
-        '''Check partial order'''
-        return bool(np.all(x <= y))
+    def leq(self, x: np.ndarray, y: np.ndarray):
+        '''
+        Check partial order
+        For even sites (colour 0): x_i <= y_i
+        For odd sites (colour 1): y_i <= x_i
+        '''
+        return bool(np.all(np.where(self.lattice.colour == 0, x <= y, x>= y)))
 
     def randomness(self, depth, keys, k):
         '''
@@ -83,8 +83,6 @@ class Ising(MonotoneModel):
             neighbour_states = padded[batch_indices[:, None], nbrs]
 
             S = neighbour_states.sum(axis=1, dtype=np.int32)
-            p = self.table[S + self.lattice.max_degree]
-            padded[batch_indices, v] = np.where(u <= p, 1, -1)
+            padded[batch_indices, v] = np.where((S == 0) & (u < self.p), 1, 0)
 
         return padded[:, :self.n]
-    
