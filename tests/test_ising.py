@@ -94,7 +94,7 @@ def test_boundary_validation():
     with pytest.raises(AssertionError, match=r"Ising boundary must be \+-1"):
         Ising(lat, beta=1.0, boundary=bad_spins)
         
-    with pytest.raises(AssertionError, match="boundary keys must be ghost ids"):
+    with pytest.raises(AssertionError, match="Boundary keys must be ghost ids"):
         Ising(lat, beta=1.0, boundary={0: 1})
 
 def test_bvals_array_construction():

@@ -56,7 +56,7 @@ def make_lattice(n_sites, nbr, is_bipartite, colour = None, n_boundary=0, ghost_
         for u in nbr[v]:
             if u != null:
                 edge_set.add(tuple(sorted((v, u))))
-    edges = np.array(sorted(list(edge_set)), dtype=np.int32)
+    edges = np.array(sorted(list(edge_set)), dtype=np.int32).reshape(-1, 2)
     n_edges = len(edges)
 
     return Lattice(
