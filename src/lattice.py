@@ -10,16 +10,26 @@ FREE = -128
 
 @dataclass(frozen=True, eq=False)
 class Lattice:
+    '''
+    n_sites: int, number of vertices
+    nbr: np.ndarray, (n_sites, max_degree) nbr[v] contains the neighbours of v
+    is_bipartite: bool, is the graph bipartite
+    n_boundary: Optional[int], number of boundary vertices
+    ghost_pos: Optional[np.ndarray], (n_boundary, ndim) grid coords of boundary sites
+    colour: Optional[np.ndarray], (n_sites,) array of 1s and 0s, required for bipartite graphs
+    n_edges: Optional[int], number of edges
+    edges: Optonal[np.ndarray], (n_edges, 2) mapping edge_id -> (site_u, site_v)
+    '''
     n_sites: int
-    nbr: np.ndarray # (n_sites, max_degree) nbr[v] contains the neighbours of v
+    nbr: np.ndarray
     is_bipartite: bool
 
     n_boundary: Optional[int] = 0
-    ghost_pos: Optional[np.ndarray] = None # (n_boundary, ndim) grid coords of boundary sites
-    colour: Optional[np.ndarray] = None # (n_sites,) array of 1s and 0s, required for bipartite graphs
+    ghost_pos: Optional[np.ndarray] = None
+    colour: Optional[np.ndarray] = None
 
     n_edges: Optional[int] = 0
-    edges: Optional[np.ndarray] = None # (n_edges, 2) mapping edge_id -> (site_u, site_v)
+    edges: Optional[np.ndarray] = None
 
     def __post_init__(self):
         if self.is_bipartite:

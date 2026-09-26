@@ -17,7 +17,7 @@ class HardCoreBipartite(MonotoneModel):
         assert lattice.is_bipartite, 'HardCoreBipartite model requires a bipartite graph'
 
         boundary = boundary or {}
-        assert all(s in (0, 1) for s in boundary.values()), 'Hard-core boudnary must be 0s or 1s'
+        assert all(s in (0, 1) for s in boundary.values()), 'Hard-core boundary must be 0s or 1s'
         assert all(self.n <= g < lattice.null for g in boundary), 'Boundary keys must be ghost ids'
         self.n_ext = lattice.n_boundary + 1
         self.bvals = np.zeros(self.n_ext, dtype=np.int8)
