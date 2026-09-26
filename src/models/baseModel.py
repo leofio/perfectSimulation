@@ -17,11 +17,6 @@ class BaseModel(ABC):
         pass
 
     @abstractmethod
-    def randomness(self, depth: int, key: int, k: int):
-        '''Shared randomness for k steps'''
-        pass
-
-    @abstractmethod
     def apply(self, state: np.ndarray, r) -> np.ndarray:
         '''Apply transitions to the state with randomness r'''
         pass
@@ -29,6 +24,23 @@ class BaseModel(ABC):
     def equal(self, x: np.ndarray, y: np.ndarray) -> bool:
         '''Check if two states are equal'''
         return np.array_equal(x, y)
+
+    def randomness(self, depth, keys, k):
+                '''
+                Get the randomness for k steps over a batch of keys.
+                keys: (batch_size,) array of seed keys
+                Returns sites and unifs of shape (batch_size, k)
+                '''
+                batch_size = len(keys)
+                sites = np.empty((batch_size, k), dtype=np.int32)
+                unifs = np.empty((batch_size, k), dtype=np.float64)
+        
+                for i, key in enumerate(keys):
+                    rng = np.random.Generator(np.random.Philox(seed=key, counter=depth))
+                    sites[i] = rng.integers(0, self.n, k)
+                    unifs[i] = rng.random(k)
+        
+                return sites, unifs
 
 class MonotoneModel(BaseModel):
     def __init__(self, lattice):

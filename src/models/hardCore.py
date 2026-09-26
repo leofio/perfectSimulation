@@ -43,23 +43,6 @@ class HardCoreBipartite(MonotoneModel):
         '''
         return bool(np.all(np.where(self.lattice.colour == 0, x <= y, x>= y)))
 
-    def randomness(self, depth, keys, k):
-        '''
-        Get the randomness for k steps over a batch of keys.
-        keys: (batch_size,) array of seed keys
-        Returns sites and unifs of shape (batch_size, k)
-        '''
-        batch_size = len(keys)
-        sites = np.empty((batch_size, k), dtype=np.int32)
-        unifs = np.empty((batch_size, k), dtype=np.float64)
-
-        for i, key in enumerate(keys):
-            rng = np.random.Generator(np.random.Philox(seed=key, counter=depth))
-            sites[i] = rng.integers(0, self.n, k)
-            unifs[i] = rng.random(k)
-
-        return sites, unifs
-
     def apply(self, states, r):
         '''
         One batch of k state updates.

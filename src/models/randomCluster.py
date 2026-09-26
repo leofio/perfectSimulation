@@ -3,8 +3,57 @@ Random Cluster model.
 '''
 
 import numpy as np
+from numba import njit
 from src.lattice import Lattice
 from src.models.baseModel import MonotoneModel
+
+@njit(cache=True)
+def jit_find(parent, x):
+    while parent[x] != x:
+        parent[x] = parent[parent[x]]
+        x = parent[x]
+    return x
+
+@njit(cache=True)
+def jit_connected_excluding(cfg, edges, base_parent, u, v, e):
+    parent = base_parent.copy()
+    n_edges = cfg.shape[0]
+    for eid in range(n_edges):
+        if eid == e or cfg[eid] == 0:
+            continue
+        a = edges[eid, 0]
+        b = edges[eid, 1]
+        ra = jit_find(parent, a)
+        rb = jit_find(parent, b)
+        if ra != rb:
+            parent[ra] = rb
+
+    return jit_find(parent, u) == jit_find(parent, v)
+
+@njit(cache=True)
+def jit_apply(states, edge_ids, unifs, edges, base_parent, p, p_merge):
+    '''
+    states: (batch_size, n_edges) int8, mutated in place and returned
+    edge_ids: (batch_size, k) int32, sampled edge index per step
+    unifs: (batch_size, k) float64, sampled uniforms per step
+    edges: (n_edges, 2) int32
+    base_parent: (null,) int32
+    '''
+    batch_size, k = edge_ids.shape
+
+    for b in range(batch_size):
+        cfg = states[b]
+        for step in range(k):
+            e = edge_ids[b, step]
+            u_site = edges[e, 0]
+            v_site = edges[e, 1]
+
+            connected = jit_connected_excluding(cfg, edges, base_parent, u_site, v_site, e)
+            p_open = p if connected else p_merge
+
+            cfg[e] = 1 if unifs[b, step] < p_open else 0
+
+    return states
 
 class MonotoneRandomCluster(MonotoneModel):
     def __init__(self, lattice: Lattice, p: float, q: float, boundary_partitions=None):
@@ -14,10 +63,13 @@ class MonotoneRandomCluster(MonotoneModel):
         assert lattice.edges is not None, 'RC model requires a lattice with an edge set'
 
         self.p = p
+        self.q = q
         self.p_merge = p / (p + q*(1 - p))
 
         self.boundary_partitions = boundary_partitions or [] # each entry is an iterable of ghost ids to be identified to one cluster
         self._base_parent = self._build_base_parent()
+
+        self._edges_arr = np.asarray(self.lattice.edges, dtype=np.int32)
 
     @property
     def n(self): return self.lattice.n_edges
@@ -30,23 +82,6 @@ class MonotoneRandomCluster(MonotoneModel):
 
     def leq(self, x, y): return bool(np.all(x <= y))
 
-    def randomness(self, depth, keys, k):
-            '''
-            Get the randomness for k steps over a batch of keys.
-            keys: (batch_size,) array of seed keys
-            Returns sites and unifs of shape (batch_size, k)
-            '''
-            batch_size = len(keys)
-            sites = np.empty((batch_size, k), dtype=np.int32)
-            unifs = np.empty((batch_size, k), dtype=np.float64)
-    
-            for i, key in enumerate(keys):
-                rng = np.random.Generator(np.random.Philox(seed=key, counter=depth))
-                sites[i] = rng.integers(0, self.n, k)
-                unifs[i] = rng.random(k)
-    
-            return sites, unifs
-
     def _build_base_parent(self):
         parent = np.arange(self.lattice.null)
         for group in self.boundary_partitions:
@@ -57,32 +92,31 @@ class MonotoneRandomCluster(MonotoneModel):
         return parent
 
     def _connected_excluding(self, cfg, u, v, e):
-        parent = self._base_parent.copy()
+        cfg = np.asarray(cfg, dtype=np.int8)
+        return bool(
+            jit_connected_excluding(
+            cfg,
+            self._edges_arr,
+            self._base_parent,
+            np.int32(u),
+            np.int32(v), 
+            np.int32(e)
+                )
+            )
 
-        def find(x):
-            while parent[x] != x:
-                parent[x] = parent[parent[x]]
-                x = parent[x]
-            return x
-        open_edges = np.flatnonzero(cfg)
-        for eid in open_edges:
-            if eid == e: continue
-            a, b_ = self.lattice.edges[eid]
-            ra, rb = find(a), find(b_)
-            if ra != rb: parent[ra] = rb
-        return bool(find(u) == find (v))
 
     def apply(self, states, r) -> np.ndarray:
-        edges_, unifs = r
-        batch_size, k = edges_.shape
+        edge_ids, unifs = r
         states = states.copy()
+        edge_ids = np.ascontiguousarray(edge_ids, dtype=np.int32)
+        unifs = np.ascontiguousarray(unifs, dtype=np.float64)
 
-        for b in range(batch_size):
-            cfg = states[b]
-            for step in range(k):
-                e = edges_[b, step]
-                u, v = self.lattice.edges[e]
-                connected = self._connected_excluding(cfg, u, v, e)
-                p_open = self.p if connected else self.p_merge
-                cfg[e] = 1 if unifs[b, step] < p_open else 0
-        return states
+        return jit_apply(
+            states, 
+            edge_ids,
+            unifs,
+            self._edges_arr,
+            self._base_parent,
+            self.p,
+            self.p_merge
+            )
