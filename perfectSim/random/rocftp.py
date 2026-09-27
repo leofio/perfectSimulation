@@ -4,10 +4,10 @@ Ro-CFTP algorithm.
 
 import numpy as np
 from typing import Optional, Tuple
-from src.models.baseModel import BaseModel
+from src.models.baseModel import MonotoneModel
 
 def _simulate_block(
-    model: BaseModel, 
+    model: MonotoneModel, 
     stream_counter: int, 
     keys: np.ndarray, 
     k: int, 

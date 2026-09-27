@@ -67,7 +67,7 @@ class MonotoneRandomCluster(MonotoneModel):
         self.p_merge = p / (p + q*(1 - p))
 
         self.boundary_partitions = boundary_partitions or [] # each entry is an iterable of ghost ids to be identified to one cluster
-        self._base_parent = self._build_base_parent()
+        self.base_parent = self._build_base_parent()
 
         self._edges_arr = np.asarray(self.lattice.edges, dtype=np.int32)
 
@@ -97,7 +97,7 @@ class MonotoneRandomCluster(MonotoneModel):
             jit_connected_excluding(
             cfg,
             self._edges_arr,
-            self._base_parent,
+            self.base_parent,
             np.int32(u),
             np.int32(v), 
             np.int32(e)
@@ -116,7 +116,7 @@ class MonotoneRandomCluster(MonotoneModel):
             edge_ids,
             unifs,
             self._edges_arr,
-            self._base_parent,
+            self.base_parent,
             self.p,
             self.p_merge
             )

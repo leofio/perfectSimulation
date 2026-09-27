@@ -4,7 +4,7 @@ Convert a Random Cluster state to a Potts state.
 
 import numpy as np
 from numba import njit
-from src.models.randomCluster import jit_find
+from src.models.randomCluster import jit_find, MonotoneRandomCluster
 
 @njit(cache=True)
 def jit_colour_clusters(rc_states, edges, n_sites, n_total, q, seed_array, base_parent, fixed_colours):
@@ -46,7 +46,7 @@ def jit_colour_clusters(rc_states, edges, n_sites, n_total, q, seed_array, base_
         for i in range(n_total):
             if parent[i] == i:
                 if fixed_for_root[i] != -1:
-                    cluster_colours[i] = fixed_colours[i]
+                    cluster_colours[i] = fixed_for_root[i]
                 else:
                     cluster_colours[i] = int(seed_array[b, i] * q)
 
@@ -55,3 +55,30 @@ def jit_colour_clusters(rc_states, edges, n_sites, n_total, q, seed_array, base_
             potts_samples[b, i] = cluster_colours[root]
 
     return potts_samples
+
+def potts_from_rc(states, model: MonotoneRandomCluster, q, boundary, seed: int = None):
+    '''
+    Generate a Potts colouring from an RC configuration.
+    boundary: dict, mapping ghost_id -> fixed_spin in {0, 1, ..., q-1}
+    '''
+    batch_size = states.shape[0]
+    fixed_colours = np.full(model.lattice.null, -1, dtype=np.int32)
+    for ghost, spin in boundary.items():
+        fixed_colours[ghost] = spin
+
+    base_sequence = np.random.SeedSequence(seed)
+    color_rng = np.random.default_rng(base_sequence.spawn(1)[0])
+    colour_unifs = color_rng.random((batch_size, model.lattice.null))
+
+    potts = jit_colour_clusters(
+        states,
+        model._edges_arr,
+        model.lattice.n_sites,
+        model.lattice.null,
+        q,
+        colour_unifs,
+        model.base_parent,
+        fixed_colours
+    )
+
+    return potts
