@@ -4,7 +4,7 @@ Hard-Core gas model.
 
 import numpy as np
 from src.lattice import Lattice
-from src.models.baseModel import MonotoneModel
+from src.models.baseModel import MonotoneModel, BoundingModel
 
 class HardCoreBipartite(MonotoneModel):
     def __init__(self, lattice: Lattice, activity: float, boundary = None):
@@ -67,5 +67,61 @@ class HardCoreBipartite(MonotoneModel):
 
             S = neighbour_states.sum(axis=1, dtype=np.int32)
             padded[batch_indices, v] = np.where((S == 0) & (u < self.p), 1, 0)
+
+        return padded[:, :self.n]
+
+class HardCoreGeneral(BoundingModel):
+    def __init__(self, lattice, activity: float, boundary = None):
+        super().__init__(lattice)
+        assert activity > 0, 'Hard-core model requires activity > 0'
+        self.activity = activity
+        self.p = activity / (1.0 + activity)
+
+        boundary = boundary or {}
+        assert all(s in (0, 1) for s in boundary.values()), 'Hard-core boundary must be 0s or 1s'
+        assert all(self.n <= g < lattice.null for g in boundary), 'Boundary keys must be ghost ids'
+        self.n_ext = lattice.n_boundary + 1
+        self.bvals = np.zeros(self.n_ext, dtype=np.int8)
+        for g, s in boundary.items():
+            self.bvals[g - self.n] = s
+
+    @property
+    def n(self): return self.lattice.n_sites
+
+    @property
+    def unknown(self): return 2
+
+    def apply(self, states, r):
+        '''
+        One batch of k state updates.
+        states: (batch_size, n)
+        r: Tuple of sites, unifs each of shape (batch_size, k)
+        '''
+        sites, unifs = r
+        batch_size, k = sites.shape
+
+        batch_indices = np.arange(batch_size)
+
+        padded = np.empty((batch_size, self.n + self.n_ext), dtype=np.int8)
+        padded[:, :self.n] = states
+        padded[:, self.n:] = self.bvals
+
+        for step in range(k):
+            v = sites[:, step]
+            u = unifs[:, step]
+
+            nbrs = self.lattice.nbr[v]
+            neighbour_states = padded[batch_indices[:, None], nbrs]
+
+            has_1 = (neighbour_states == 1).any(axis=1)
+            has_2 = (neighbour_states == 2).any(axis=1)
+
+            update_mask = (u < self.p)
+
+            new_val = np.zeros(batch_size, dtype=np.int8)
+            new_val = np.where(update_mask & ~has_1 & has_2, self.unknown, new_val)
+            new_val = np.where(update_mask & ~has_1 & ~has_2, 1, new_val)
+
+            padded[batch_indices, v] = new_val
 
         return padded[:, :self.n]

@@ -17,7 +17,7 @@ class BaseModel(ABC):
         pass
 
     @abstractmethod
-    def apply(self, state: np.ndarray, r) -> np.ndarray:
+    def apply(self, states: np.ndarray, r) -> np.ndarray:
         '''Apply transitions to the state with randomness r'''
         pass
 
@@ -62,3 +62,14 @@ class MonotoneModel(BaseModel):
     def leq(self, x: np.ndarray, y: np.ndarray) -> bool:
         '''Check the partial order, x<=y'''
         pass
+
+class BoundingModel(BaseModel):
+    def __init__(self, lattice):
+         super().__init__(lattice)
+
+    @property
+    def unknown(self):
+        pass
+
+    @property
+    def bounding_initial(self): return np.full(self.n, self.unknown, dtype=np.int8)
