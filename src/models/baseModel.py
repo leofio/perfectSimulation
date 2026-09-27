@@ -68,6 +68,7 @@ class BoundingModel(BaseModel):
          super().__init__(lattice)
 
     @property
+    @abstractmethod
     def unknown(self):
         pass
 
