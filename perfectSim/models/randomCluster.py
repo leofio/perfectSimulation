@@ -4,8 +4,8 @@ Random Cluster model.
 
 import numpy as np
 from numba import njit
-from src.lattice import Lattice
-from src.models.baseModel import MonotoneModel
+from perfectSim.lattice import Lattice
+from perfectSim.models.baseModel import MonotoneModel
 
 @njit(cache=True)
 def jit_find(parent, x):

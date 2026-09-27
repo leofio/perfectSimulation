@@ -2,9 +2,9 @@ import pytest
 import numpy as np
 from scipy.stats import chisquare
 
-from src.lattice import make_lattice, triangular
-from src.models.hardCore import HardCoreGeneral
-from src.perfectSim.bounding_cftp import bounding_cftp
+from perfectSim.lattice import make_lattice, triangular
+from perfectSim.models.hardCore import HardCoreGeneral
+from perfectSim.random.bounding_cftp import bounding_cftp
 
 
 @pytest.fixture

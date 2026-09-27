@@ -4,7 +4,7 @@ Test Lattice dataclass and torus construction
 
 import numpy as np
 import pytest
-from src.lattice import Lattice, torus, grid, triangular
+from perfectSim.lattice import Lattice, torus, grid, triangular
 
 def test_size_and_shape():
     lat = torus(4)

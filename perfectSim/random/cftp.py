@@ -3,7 +3,7 @@ CFTP algorithm.
 '''
 
 import numpy as np
-from src.models.baseModel import MonotoneModel
+from perfectSim.models.baseModel import MonotoneModel
 
 def monotone_cftp(model: MonotoneModel, B: int = 1, seed: int = None, k: int = 32, D_init: int = 1):
     '''

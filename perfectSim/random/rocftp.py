@@ -4,7 +4,7 @@ Ro-CFTP algorithm.
 
 import numpy as np
 from typing import Optional, Tuple
-from src.models.baseModel import MonotoneModel
+from perfectSim.models.baseModel import MonotoneModel
 
 def _simulate_block(
     model: MonotoneModel, 

@@ -3,7 +3,7 @@ Bounding chain CFTP for non-monotone chains.
 '''
 
 import numpy as np
-from src.models.baseModel import BoundingModel
+from perfectSim.models.baseModel import BoundingModel
 
 def bounding_cftp(model: BoundingModel, B: int = 1, seed: int = None, k: int = 32, D_init: int = 1):
     '''

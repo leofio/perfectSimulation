@@ -2,9 +2,9 @@ import pytest
 import numpy as np
 from scipy.stats import chisquare
 
-from src.lattice import make_lattice, torus
-from src.models.ising import IsingAntiFerromagnetic
-from src.perfectSim.bounding_cftp import bounding_cftp
+from perfectSim.lattice import make_lattice, torus
+from perfectSim.models.ising import IsingAntiFerromagnetic
+from perfectSim.random.bounding_cftp import bounding_cftp
 
 
 @pytest.fixture

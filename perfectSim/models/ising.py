@@ -3,8 +3,8 @@ Ising model.
 '''
 
 import numpy as np
-from src.lattice import Lattice
-from src.models.baseModel import MonotoneModel, BoundingModel
+from perfectSim.lattice import Lattice
+from perfectSim.models.baseModel import MonotoneModel, BoundingModel
 
 class Ising(MonotoneModel):
     def __init__(self, lattice: Lattice, beta, h = 0.0, boundary=None):

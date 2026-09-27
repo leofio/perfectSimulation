@@ -4,7 +4,7 @@ Convert a Random Cluster state to a Potts state.
 
 import numpy as np
 from numba import njit
-from src.models.randomCluster import jit_find, MonotoneRandomCluster
+from perfectSim.models.randomCluster import jit_find, MonotoneRandomCluster
 
 @njit(cache=True)
 def jit_colour_clusters(rc_states, edges, n_sites, n_total, q, seed_array, base_parent, fixed_colours):

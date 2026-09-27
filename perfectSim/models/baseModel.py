@@ -4,7 +4,7 @@ Abstract base class for other model to build on.
 
 from abc import ABC, abstractmethod
 import numpy as np
-from src.lattice import Lattice
+from perfectSim.lattice import Lattice
 
 class BaseModel(ABC):
     def __init__(self, lattice: Lattice):
