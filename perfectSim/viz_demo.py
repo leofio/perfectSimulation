@@ -2,7 +2,7 @@
 import os
 os.environ.setdefault('MPLBACKEND', 'Agg')
 import numpy as np
-from perfectSim.lattice import grid, triangular, torus, boundary_values
+from perfectSim.lattice import grid, triangular, torus, boundary_values, make_lattice, FREE
 from perfectSim.models.ising import Ising
 from perfectSim.models.hardCore import HardCoreBipartite
 from perfectSim.models.randomCluster import MonotoneRandomCluster
@@ -20,7 +20,7 @@ model = Ising(lat, beta=0.44, boundary=bd)
 states, upd = forward_trajectory(model, steps=1500, stride=15, seed=1)
 art = draw(lat, states[-1], boundary=bd, model=model, edge_rule='aligned', title='Ising, beta=0.44')
 art.fig.savefig(f'{out}/ising_grid.png', dpi=80)
-save(animate(lat, states, boundary=bd, model=model, edge_rule='aligned', highlight=upd),
+save(animate(lat, states, boundary=bd, model=model, edge_rule='aligned'),
      f'{out}/ising.gif', fps=10, dpi=60)
 
 # 2. Triangular lattice with a boundary (band follows the parallelogram).
@@ -35,10 +35,6 @@ draw(tor, rng.choice([-1, 1], tor.n_sites), edge_rule='aligned',
      title='torus').fig.savefig(f'{out}/torus.png', dpi=80)
 
 # 4. Random-cluster edges over Potts colours (Edwards-Sokal style picture).
-from perfectSim.models.randomCluster import MonotoneRandomCluster
-from perfectSim.models.potts import potts_from_rc  # Assuming potts is inside perfectSim.models
-
-# 4. RC Simulation to Potts (Edwards-Sokal style picture)
 lat = triangular(6, ghosts=True)
 q_states = 4
 bd = boundary_values(lat, 0)
@@ -56,3 +52,210 @@ hc = HardCoreBipartite(hc_lat, activity=1.5)
 hs, hu = forward_trajectory(hc, steps=600, stride=6, seed=2)
 draw(hc_lat, hs[-1], model=hc, title='hard-core').fig.savefig(f'{out}/hardcore.png', dpi=80)
 print('wrote', sorted(os.listdir(out)))
+
+# =============================================================================
+# 1. Hexagonal Grid: Hard-Core Evolution (Pure NumPy)
+# =============================================================================
+W, H = 8, 8
+nodes = []
+node_ids = {}
+
+# Map a 2D grid into a brick-wall coordinate system to form hexagons
+for r in range(H):
+    for c in range(W):
+        col = (c + r) % 2  # Bipartite coloring dictates vertical edge directions
+        x = c * (np.sqrt(3) / 2.0)
+        y = r * 1.5 - (col * 0.5)
+        nodes.append({'c': c, 'r': r, 'col': col, 'pos': (x, y)})
+        node_ids[(c, r)] = len(nodes) - 1
+
+# Build the adjacency list for the brick-wall mapping
+adj = {i: [] for i in range(len(nodes))}
+for i, n in enumerate(nodes):
+    c, r, col = n['c'], n['r'], n['col']
+    
+    # Horizontal connections
+    neighbors_cr = [(c - 1, r), (c + 1, r)]
+    # Vertical connections alternate based on bipartite parity
+    if col == 0:
+        neighbors_cr.append((c, r + 1))
+    else:
+        neighbors_cr.append((c, r - 1))
+        
+    for nc, nr in neighbors_cr:
+        if (nc, nr) in node_ids:
+            adj[i].append(node_ids[(nc, nr)])
+
+# Sort nodes: internal sites (degree 3) first, then boundary ghosts (degree < 3)
+internal_ids = [i for i, nbrs in adj.items() if len(nbrs) == 3]
+boundary_ids = [i for i, nbrs in adj.items() if len(nbrs) < 3]
+
+n_sites = len(internal_ids)
+n_boundary = len(boundary_ids)
+
+# Re-index for dense arrays
+new_id = {}
+for idx, old_id in enumerate(internal_ids):
+    new_id[old_id] = idx
+for idx, old_id in enumerate(boundary_ids):
+    new_id[old_id] = n_sites + idx
+
+# Allocate lattice arrays
+pos = np.zeros((n_sites + n_boundary, 2), dtype=np.float32)
+colour = np.zeros(n_sites, dtype=np.int8)
+nbr = np.full((n_sites, 3), FREE, dtype=np.int32)
+
+# Populate arrays with re-indexed values
+for old_id, new_i in new_id.items():
+    pos[new_i] = nodes[old_id]['pos']
+    if new_i < n_sites:
+        colour[new_i] = nodes[old_id]['col']
+        for j, nbr_old_id in enumerate(adj[old_id]):
+            nbr[new_i, j] = new_id[nbr_old_id]
+
+hex_lat = make_lattice(
+    n_sites=n_sites, nbr=nbr, is_bipartite=True, colour=colour, 
+    n_boundary=n_boundary, ghost_pos=pos[n_sites:], pos=pos
+)
+
+# Apply alternating boundary constraints (+- 1 mapped to 0 and 1 for the palette)
+bd = boundary_values(hex_lat, lambda x, y: np.where((x + y).astype(int) % 2 == 0, 1, 0))
+
+# Simulate and render
+hc_model = HardCoreBipartite(hex_lat, activity=1.5)
+states, updated = forward_trajectory(hc_model, steps=100, stride=1, seed=42)
+
+anim = animate(hex_lat, states, boundary=bd, model=hc_model, title='Hexagonal Hard-Core')
+save(anim, f'{out}/hex_hardcore.gif', fps=10)
+
+
+# =============================================================================
+# 2. Star Graph: Potts Colouring (Pure NumPy)
+# =============================================================================
+n_leaves = 12
+n_sites = n_leaves + 1
+
+# Generate radial coordinates around a center point
+theta = np.linspace(0, 2 * np.pi, n_leaves, endpoint=False)
+pos_star = np.vstack([[0.0, 0.0], np.column_stack([np.cos(theta), np.sin(theta)])])
+
+# Bipartite coloring: Center is 0, all leaves are 1
+colour_star = np.array([0] + [1] * n_leaves, dtype=np.int8)
+
+# Initialize dense adjacency with FREE padding
+nbr_star = np.full((n_sites, n_leaves), FREE, dtype=np.int32)
+nbr_star[0, :] = np.arange(1, n_sites)  # Center connects to all leaves
+for i in range(1, n_sites):
+    nbr_star[i, 0] = 0                  # Leaves connect only back to the center
+
+star_lat = make_lattice(n_sites, nbr_star, is_bipartite=True, colour=colour_star, pos=pos_star)
+
+# Simulate Random Cluster state
+q_states = 4
+rc_model = MonotoneRandomCluster(star_lat, p=0.6, q=q_states, boundary_partitions=[])
+rc_states_traj, _ = forward_trajectory(rc_model, x0=rc_model.bottom, steps=50, stride=50, seed=123)
+
+# Project to Potts colouring
+final_rc_state = np.expand_dims(rc_states_traj[-1], axis=0)
+potts_states = potts_from_rc(final_rc_state, rc_model, q=q_states, boundary={}, seed=123)
+
+# Render still image with wrap='straight' bypass
+art = draw(
+    star_lat, 
+    potts_states[0], 
+    edge_states=final_rc_state[0], 
+    palette=categorical_palette(q_states), 
+    wrap='straight', 
+    title='Star Graph Potts (q=4)'
+)
+art.fig.savefig(f'{out}/star_potts.png', dpi=100)
+
+# L-shape
+
+# 1. Define the L-shape coordinates (r, c)
+# Top part: 5 wide (cols 0-4), 2 high (rows 0-1)
+# Short part: 2 wide (cols 0-1), 3 high (rows 2-4)
+internal_coords = set()
+for r in range(2):
+    for c in range(5):
+        internal_coords.add((r, c))
+for r in range(2, 5):
+    for c in range(2):
+        internal_coords.add((r, c))
+
+# 2. Find boundary (ghost) coordinates surrounding the shape
+ghost_coords = set()
+for r, c in internal_coords:
+    for dr, dc in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
+        nr, nc = r + dr, c + dc
+        if (nr, nc) not in internal_coords:
+            ghost_coords.add((nr, nc))
+
+internal_list = sorted(list(internal_coords))
+ghost_list = sorted(list(ghost_coords))
+
+n_sites = len(internal_list)
+n_boundary = len(ghost_list)
+
+# Map coordinate tuples to sequential node IDs
+coord_to_id = {}
+for i, coord in enumerate(internal_list):
+    coord_to_id[coord] = i
+for i, coord in enumerate(ghost_list):
+    coord_to_id[coord] = n_sites + i
+
+# 3. Allocate lattice arrays
+pos = np.empty((n_sites + n_boundary, 2), dtype=np.float32)
+colour = np.empty(n_sites, dtype=np.int8)
+nbr = np.full((n_sites, 4), FREE, dtype=np.int32)
+
+for (r, c), v in coord_to_id.items():
+    pos[v] = (r, c)  # Stored as (row, col). The renderer naturally maps this to (x, y)
+    
+    if v < n_sites:
+        # Standard grid bipartite colouring
+        colour[v] = (r + c) % 2
+        
+        # Populate neighbors up to max degree of 4
+        valid_nbrs = []
+        for dr, dc in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
+            nr, nc = r + dr, c + dc
+            if (nr, nc) in coord_to_id:
+                valid_nbrs.append(coord_to_id[(nr, nc)])
+        
+        nbr[v, :len(valid_nbrs)] = valid_nbrs
+
+# 4. Construct the Lattice object
+l_lat = make_lattice(
+    n_sites=n_sites, 
+    nbr=nbr, 
+    is_bipartite=True, 
+    colour=colour, 
+    n_boundary=n_boundary, 
+    ghost_pos=pos[n_sites:], 
+    pos=pos
+)
+
+# 5. Set boundary conditions using a vectorized lambda
+# Since pos stores (r, c), the arguments passed to the lambda are (r, c).
+# This rule sets the top/right to +1 and the bottom/left to -1 to force a domain wall.
+bd = boundary_values(
+    l_lat, 
+    lambda r, c: np.where((r > 2) | (c < 2), -1, 1)
+)
+
+# 6. Run simulation and animate
+ising_model = Ising(l_lat, beta=0.44, boundary=bd)
+states, updated = forward_trajectory(ising_model, steps=400, stride=4, seed=10)
+
+anim = animate(
+    l_lat, 
+    states, 
+    boundary=bd, 
+    model=ising_model, 
+    highlight=updated, 
+    edge_rule='aligned',
+    wrap='straight',  
+    title='Ising Model on 2x5 / 2x3 L-Shape'
+)
+save(anim, f'{out}/l_shape_grid_ising.gif', fps=12)

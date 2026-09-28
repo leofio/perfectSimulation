@@ -56,7 +56,6 @@ def padded_hull(points: np.ndarray, radius: float, n_arc: int = 24) -> np.ndarra
     cloud = (hull[:, None, :] + circle[None, :, :]).reshape(-1, 2)
     return convex_hull(cloud)
 
-
 def edge_segments(xy, edges, wrap='stubs', stub=0.35, long_factor=1.5):
     '''
     Turn an edge list into line segments for a LineCollection.

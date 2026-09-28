@@ -3,7 +3,6 @@ User-facing functions: draw (one state), animate (many states), save.
 '''
 
 from pathlib import Path
-from typing import Optional
 import numpy as np
 from matplotlib.animation import FuncAnimation, FFMpegWriter, PillowWriter
 from .artist import LatticeArtist

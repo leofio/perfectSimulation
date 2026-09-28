@@ -19,7 +19,7 @@ class Lattice:
     colour: Optional[np.ndarray], (n_sites,) array of 1s and 0s, required for bipartite graphs
     n_edges: Optional[int], number of edges
     edges: Optonal[np.ndarray], (n_edges, 2) mapping edge_id -> (site_u, site_v)
-    pos: Optional[np.ndarray], (n_total, ndim) coords of each vertex including ghosts
+    pos: Optional[np.ndarray], (n_total, n_dim), coords for each vertex including ghosts
     '''
     n_sites: int
     nbr: np.ndarray
@@ -105,13 +105,9 @@ def _grid(L, M, offsets, is_bipartite, colour=None, periodic=False, ghosts=False
     nbr = np.array([[nid(i + di, j + dj) for di, dj in offsets]
                     for i in range(L) for j in range(M)], dtype=np.int32)
     site_pos_list = [(i, j) for i in range(L) for j in range(M)]
-    
     ghost_pos_list = sorted(ghost, key=ghost.get)
-    
     full_pos = np.array(site_pos_list + ghost_pos_list, dtype=np.float32)
-
     ghost_coords = np.array(ghost_pos_list, dtype=np.float32) if ghost else None
-
     return make_lattice(n, nbr, is_bipartite, colour=colour, n_boundary=len(ghost), ghost_pos=ghost_coords, pos=full_pos)
 
 SQUARE = [(-1, 0), (1, 0), (0, -1), (0, 1)]
