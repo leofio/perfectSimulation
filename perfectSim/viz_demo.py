@@ -2,7 +2,7 @@
 import os
 os.environ.setdefault('MPLBACKEND', 'Agg')
 import numpy as np
-from perfectSim.lattice import grid, triangular, torus, boundary_values, make_lattice, FREE
+from perfectSim.lattice import grid, triangular, torus, boundary_values, make_lattice, hexagonal, complete, FREE
 from perfectSim.models.ising import Ising
 from perfectSim.models.hardCore import HardCoreBipartite
 from perfectSim.models.randomCluster import MonotoneRandomCluster
@@ -53,122 +53,22 @@ hs, hu = forward_trajectory(hc, steps=600, stride=6, seed=2)
 draw(hc_lat, hs[-1], model=hc, title='hard-core').fig.savefig(f'{out}/hardcore.png', dpi=80)
 print('wrote', sorted(os.listdir(out)))
 
-# =============================================================================
-# 1. Hexagonal Grid: Hard-Core Evolution (Pure NumPy)
-# =============================================================================
-W, H = 8, 8
-nodes = []
-node_ids = {}
-
-# Map a 2D grid into a brick-wall coordinate system to form hexagons
-for r in range(H):
-    for c in range(W):
-        col = (c + r) % 2  # Bipartite coloring dictates vertical edge directions
-        x = c * (np.sqrt(3) / 2.0)
-        y = r * 1.5 - (col * 0.5)
-        nodes.append({'c': c, 'r': r, 'col': col, 'pos': (x, y)})
-        node_ids[(c, r)] = len(nodes) - 1
-
-# Build the adjacency list for the brick-wall mapping
-adj = {i: [] for i in range(len(nodes))}
-for i, n in enumerate(nodes):
-    c, r, col = n['c'], n['r'], n['col']
-    
-    # Horizontal connections
-    neighbors_cr = [(c - 1, r), (c + 1, r)]
-    # Vertical connections alternate based on bipartite parity
-    if col == 0:
-        neighbors_cr.append((c, r + 1))
-    else:
-        neighbors_cr.append((c, r - 1))
-        
-    for nc, nr in neighbors_cr:
-        if (nc, nr) in node_ids:
-            adj[i].append(node_ids[(nc, nr)])
-
-# Sort nodes: internal sites (degree 3) first, then boundary ghosts (degree < 3)
-internal_ids = [i for i, nbrs in adj.items() if len(nbrs) == 3]
-boundary_ids = [i for i, nbrs in adj.items() if len(nbrs) < 3]
-
-n_sites = len(internal_ids)
-n_boundary = len(boundary_ids)
-
-# Re-index for dense arrays
-new_id = {}
-for idx, old_id in enumerate(internal_ids):
-    new_id[old_id] = idx
-for idx, old_id in enumerate(boundary_ids):
-    new_id[old_id] = n_sites + idx
-
-# Allocate lattice arrays
-pos = np.zeros((n_sites + n_boundary, 2), dtype=np.float32)
-colour = np.zeros(n_sites, dtype=np.int8)
-nbr = np.full((n_sites, 3), FREE, dtype=np.int32)
-
-# Populate arrays with re-indexed values
-for old_id, new_i in new_id.items():
-    pos[new_i] = nodes[old_id]['pos']
-    if new_i < n_sites:
-        colour[new_i] = nodes[old_id]['col']
-        for j, nbr_old_id in enumerate(adj[old_id]):
-            nbr[new_i, j] = new_id[nbr_old_id]
-
-hex_lat = make_lattice(
-    n_sites=n_sites, nbr=nbr, is_bipartite=True, colour=colour, 
-    n_boundary=n_boundary, ghost_pos=pos[n_sites:], pos=pos
-)
-
-# Apply alternating boundary constraints (+- 1 mapped to 0 and 1 for the palette)
+# Hexagonal Grid: Hard-Core Evolution
+hex_lat = hexagonal(8, ghosts=True)
 bd = boundary_values(hex_lat, lambda x, y: np.where((x + y).astype(int) % 2 == 0, 1, 0))
-
-# Simulate and render
 hc_model = HardCoreBipartite(hex_lat, activity=1.5)
 states, updated = forward_trajectory(hc_model, steps=100, stride=1, seed=42)
-
 anim = animate(hex_lat, states, boundary=bd, model=hc_model,highlight=updated, title='Hexagonal Hard-Core')
 save(anim, f'{out}/hex_hardcore.gif', fps=10)
 
 
-# =============================================================================
-# 2. Star Graph: Potts Colouring (Pure NumPy)
-# =============================================================================
-n_leaves = 12
-n_sites = n_leaves + 1
+# Kn
 
-# Generate radial coordinates around a center point
-theta = np.linspace(0, 2 * np.pi, n_leaves, endpoint=False)
-pos_star = np.vstack([[0.0, 0.0], np.column_stack([np.cos(theta), np.sin(theta)])])
-
-# Bipartite coloring: Center is 0, all leaves are 1
-colour_star = np.array([0] + [1] * n_leaves, dtype=np.int8)
-
-# Initialize dense adjacency with FREE padding
-nbr_star = np.full((n_sites, n_leaves), FREE, dtype=np.int32)
-nbr_star[0, :] = np.arange(1, n_sites)  # Center connects to all leaves
-for i in range(1, n_sites):
-    nbr_star[i, 0] = 0                  # Leaves connect only back to the center
-
-star_lat = make_lattice(n_sites, nbr_star, is_bipartite=True, colour=colour_star, pos=pos_star)
-
-# Simulate Random Cluster state
-q_states = 4
-rc_model = MonotoneRandomCluster(star_lat, p=0.6, q=q_states, boundary_partitions=[])
-rc_states_traj, _ = forward_trajectory(rc_model, x0=rc_model.bottom, steps=50, stride=50, seed=123)
-
-# Project to Potts colouring
-final_rc_state = np.expand_dims(rc_states_traj[-1], axis=0)
-potts_states = potts_from_rc(final_rc_state, rc_model, q=q_states, boundary={}, seed=123)
-
-# Render still image with wrap='straight' bypass
-art = draw(
-    star_lat, 
-    potts_states[0], 
-    edge_states=final_rc_state[0], 
-    palette=categorical_palette(q_states), 
-    wrap='straight', 
-    title='Star Graph Potts (q=4)'
-)
-art.fig.savefig(f'{out}/star_potts.png', dpi=100)
+kn = complete(12)
+kn_rc = MonotoneRandomCluster(kn, p=0.4, q=1.5)
+states, updated = forward_trajectory(kn_rc)
+kn_anim = animate(kn, edge_states=states)
+save(kn_anim, f'{out}/kn_rc.gif', fps=10)
 
 # L-shape
 

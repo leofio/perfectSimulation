@@ -102,8 +102,12 @@ def _grid(L, M, offsets, is_bipartite, colour=None, periodic=False, ghosts=False
             ghost[(i, j)] = n + len(ghost)
         return ghost[(i, j)]
 
-    nbr = np.array([[nid(i + di, j + dj) for di, dj in offsets]
+    def offs(i, j):
+        return offsets(i, j) if callable(offsets) else offsets
+
+    nbr = np.array([[nid(i + di, j + dj) for di, dj in offs(i, j)]
                     for i in range(L) for j in range(M)], dtype=np.int32)
+
     site_pos_list = [(i, j) for i in range(L) for j in range(M)]
     ghost_pos_list = sorted(ghost, key=ghost.get)
     full_pos = np.array(site_pos_list + ghost_pos_list, dtype=np.float32)
@@ -148,6 +152,9 @@ def triangular(L, M=None, ghosts=False):
     
     return replace(lat, pos=new_pos, ghost_pos=new_ghost_pos)
 
+def hexagonal(L, M=None, ghosts=False):
+    M = L if M is None else M
+
 def boundary_values(lat: Lattice, spec: Union[int, callable]):
     '''
     spec: int, or callable(*coords) -> array of values (FREE entries skipped).
@@ -160,3 +167,41 @@ def boundary_values(lat: Lattice, spec: Union[int, callable]):
     else:
         vals = np.broadcast_to(spec, lat.n_boundary)
     return {lat.n_sites + g: int(v) for g, v in enumerate(vals) if v != FREE}
+
+def _hex_offsets(i, j):
+    vertical = (1, 0) if (i + j) % 2 == 0 else (-1, 0)
+    return [(0, -1), (0, 1), vertical]
+
+def _hex_transform(p):
+    '''Map brick-wall (i, j) coords to true honeycomb coords (unit bond length).'''
+    i, j = p[:, 0], p[:, 1]
+    odd = np.mod(i + j, 2)
+    x = j * np.sqrt(3) / 2.0
+    y = 1.5 * i - 0.5 * odd
+    return np.stack([x, y], axis=1).astype(np.float32)
+
+def hexagonal(L, M=None, ghosts=False):
+    '''LxM hexagonal (honeycomb) grid, stored as a brick-wall lattice.'''
+    M = L if M is None else M
+    colour = np.array([(i + j) % 2 for i in range(L) for j in range(M)], dtype=np.int8)
+    lat = _grid(L, M, _hex_offsets, is_bipartite=True, colour=colour, ghosts=ghosts)
+
+    new_pos = _hex_transform(lat.pos)
+    new_ghost_pos = _hex_transform(lat.ghost_pos) if lat.ghost_pos is not None else None
+
+    return replace(lat, pos=new_pos, ghost_pos=new_ghost_pos)
+
+def complete(n):
+    '''Complete graph K_n: every site is a neighbour of every other site.'''
+    idx = np.arange(n)
+    nbr = np.array([np.delete(idx, v) for v in range(n)], dtype=np.int32).reshape(n, n - 1)
+
+    # K_n is bipartite only for n <= 2
+    is_bipartite = n <= 2
+    colour = (idx % 2).astype(np.int8) if is_bipartite else None
+
+    # place sites evenly on a unit circle, useful for plotting
+    theta = 2 * np.pi * idx / max(n, 1)
+    pos = np.stack([np.cos(theta), np.sin(theta)], axis=1).astype(np.float32)
+
+    return make_lattice(n, nbr, is_bipartite, colour=colour, pos=pos)
