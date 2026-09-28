@@ -125,7 +125,7 @@ bd = boundary_values(hex_lat, lambda x, y: np.where((x + y).astype(int) % 2 == 0
 hc_model = HardCoreBipartite(hex_lat, activity=1.5)
 states, updated = forward_trajectory(hc_model, steps=100, stride=1, seed=42)
 
-anim = animate(hex_lat, states, boundary=bd, model=hc_model, title='Hexagonal Hard-Core')
+anim = animate(hex_lat, states, boundary=bd, model=hc_model,highlight=updated, title='Hexagonal Hard-Core')
 save(anim, f'{out}/hex_hardcore.gif', fps=10)
 
 
