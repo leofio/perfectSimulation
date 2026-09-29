@@ -9,6 +9,8 @@ Unlike standard MCMC, which only samples *approximately* after some
 (unknown) burn-in, CFTP produces samples that are exactly distributed
 according to the model's true stationary distribution.
 
+<img src="viz_out/cftp.gif" alt="CFTP Animation" width="600" />
+
 ## Features
 
 - **Lattice geometry**: square grids, tori (periodic boundaries), and
