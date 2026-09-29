@@ -44,16 +44,31 @@ def convex_hull(points: np.ndarray) -> np.ndarray:
         upper.append(p)
     return np.array(lower[:-1] + upper[:-1])
 
+def padded_hull(points: np.ndarray, radius: float, n_arc: int = 24, ratio: float = 0.4) -> np.ndarray:
+    '''
+    Boundary of `points`, grown outward by `radius` with rounded corners.
+    Automatically uses a concave wrap if the `shapely` library is installed.
+    Falls back to a standard convex hull (Minkowski sum) if `shapely` is missing.
+    '''
+    try:
+        from shapely.geometry import MultiPoint
+        from shapely import concave_hull
+        
+        mp = MultiPoint(points)
+        hull = concave_hull(mp, ratio=ratio)
+        
+        padded_shape = hull.buffer(distance=radius, join_style=1)
+        
+        if hasattr(padded_shape, 'exterior'):
+            return np.array(padded_shape.exterior.coords)
+            
+    except ImportError:
+        pass
 
-def padded_hull(points: np.ndarray, radius: float, n_arc: int = 24) -> np.ndarray:
-    '''
-    Convex hull of `points`, grown outward by `radius` (a Minkowski sum with a disc).
-    Corners come out rounded, which looks good for boundary bands.
-    '''
     ang = np.linspace(0.0, 2 * np.pi, n_arc, endpoint=False)
     circle = radius * np.column_stack([np.cos(ang), np.sin(ang)])
-    hull = convex_hull(points)
-    cloud = (hull[:, None, :] + circle[None, :, :]).reshape(-1, 2)
+    hull_pts = convex_hull(points)
+    cloud = (hull_pts[:, None, :] + circle[None, :, :]).reshape(-1, 2)
     return convex_hull(cloud)
 
 def edge_segments(xy, edges, wrap='stubs', stub=0.35, long_factor=1.5):

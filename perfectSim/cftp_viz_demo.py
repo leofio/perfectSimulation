@@ -11,7 +11,11 @@ out = 'viz_out'
 os.makedirs(out, exist_ok=True)
 
 lat = hexagonal(10, 8, ghosts=True)
-bd = boundary_values(lat, lambda x, y: np.where((x + y).astype(int) % 2 == 0, 1, -1))
+x_max_real = (8 - 1) * np.sqrt(3) / 2.0
+bd = boundary_values(
+    lat, 
+    lambda x, y: np.where((x < -1e-5) | (x > x_max_real + 1e-5), 1, -1)
+)
 model = Ising(lat, 0.4, boundary=bd)
 
 samples, trace = monotone_cftp(model, seed=7, trace=True, k=1)

@@ -2,7 +2,7 @@
 import os
 os.environ.setdefault('MPLBACKEND', 'Agg')
 import numpy as np
-from perfectSim.lattice import grid, triangular, torus, boundary_values, make_lattice, hexagonal, complete, FREE
+from perfectSim.lattice import grid, triangular, torus, boundary_values, make_lattice, hexagonal, complete, FREE, d_ary_tree
 from perfectSim.models.ising import Ising
 from perfectSim.models.hardCore import HardCoreBipartite
 from perfectSim.models.randomCluster import MonotoneRandomCluster
@@ -24,10 +24,10 @@ save(animate(lat, states, boundary=bd, model=model, edge_rule='aligned'),
      f'{out}/ising.gif', fps=10, dpi=60)
 
 # 2. Triangular lattice with a boundary (band follows the parallelogram).
-tri = triangular(8, ghosts=True)
-tbd = boundary_values(tri, 1)
-draw(tri, rng.choice([-1, 1], tri.n_sites), boundary=tbd, edge_rule='aligned',
-     title='triangular').fig.savefig(f'{out}/triangular.png', dpi=80)
+tree = d_ary_tree(5, 3)
+tbd = boundary_values(tree, 1)
+draw(tree, rng.choice([-1, 1], tree.n_sites), boundary=tbd, edge_rule='aligned',
+     title='tree').fig.savefig(f'{out}/tree.png', dpi=80)
 
 # 3. Torus: wrap-around edges drawn as stubs.
 tor = torus(8)
