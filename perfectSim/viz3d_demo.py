@@ -2,8 +2,8 @@
 import os
 os.environ.setdefault('MPLBACKEND', 'Agg')
 import numpy as np
-from perfectSim.lattice import boundary_values
-from perfectSim.lattice3d import grid3d, torus3d, complete_sphere
+from perfectSim.lattice.lattice import boundary_values
+from perfectSim.lattice.lattice3d import grid3d, torus3d, complete_sphere
 from perfectSim.models.ising import Ising
 from perfectSim.models.hardCore import HardCoreBipartite
 from perfectSim.models.randomCluster import MonotoneRandomCluster

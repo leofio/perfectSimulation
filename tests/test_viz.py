@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 import matplotlib.pyplot as plt
 
-from perfectSim.lattice import grid, triangular, torus, boundary_values, FREE
+from perfectSim.lattice.lattice import grid, triangular, torus, boundary_values, FREE
 from perfectSim.viz import (draw, animate, save, Palette, ISING, categorical_palette,
                      default_palette, forward_trajectory, ghost_values_from_boundary,
                      rule_aligned)

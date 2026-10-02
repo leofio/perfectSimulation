@@ -5,7 +5,7 @@ Test Ising model
 import random
 import numpy as np
 import pytest
-from perfectSim.lattice import torus, grid, boundary_values
+from perfectSim.lattice.lattice import torus, grid, boundary_values
 from perfectSim.models.ising import Ising
 
 @pytest.fixture

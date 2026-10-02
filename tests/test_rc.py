@@ -5,7 +5,7 @@ Test Random Cluster model.
 import random
 import numpy as np
 import pytest
-from perfectSim.lattice import torus, grid
+from perfectSim.lattice.lattice import torus, grid
 from perfectSim.models.randomCluster import MonotoneRandomCluster
 
 @pytest.fixture

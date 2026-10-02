@@ -12,7 +12,7 @@ states: open/closed) or from an 'edge rule' derived from vertex values.
 from dataclasses import dataclass
 from typing import Callable, Optional
 import numpy as np
-from perfectSim.lattice import FREE, Lattice
+from perfectSim.lattice.lattice import FREE, Lattice
 
 
 def ghost_values_from_boundary(lat: Lattice, boundary: Optional[dict]) -> np.ndarray:

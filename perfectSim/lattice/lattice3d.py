@@ -9,7 +9,7 @@ Site id = (i * M + j) * N + k.
 import itertools
 from dataclasses import replace
 import numpy as np
-from perfectSim.lattice import FREE, Lattice, make_lattice, complete
+from perfectSim.lattice.lattice import FREE, Lattice, make_lattice, complete
 
 CUBIC = [(-1, 0, 0), (1, 0, 0), (0, -1, 0), (0, 1, 0), (0, 0, -1), (0, 0, 1)]
 

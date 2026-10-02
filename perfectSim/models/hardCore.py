@@ -3,7 +3,7 @@ Hard-Core gas model.
 '''
 
 import numpy as np
-from perfectSim.lattice import Lattice
+from perfectSim.lattice.lattice import Lattice
 from perfectSim.models.baseModel import MonotoneModel, BoundingModel
 
 class HardCoreBipartite(MonotoneModel):

@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 from matplotlib.colors import to_rgba
 from matplotlib.patches import Polygon
-from perfectSim.lattice import FREE, Lattice
+from perfectSim.lattice.lattice import FREE, Lattice
 from .frames import Frame
 from .geometry import edge_segments, orient, padded_hull
 from .palettes import Palette

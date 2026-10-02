@@ -4,7 +4,7 @@ os.environ.setdefault('MPLBACKEND', 'Agg')
 from perfectSim.viz import animate_pair, save
 from perfectSim.models.ising import Ising
 from perfectSim.random.cftp import monotone_cftp
-from perfectSim.lattice import hexagonal, boundary_values
+from perfectSim.lattice.lattice import hexagonal, boundary_values
 import numpy as np
 
 out = 'viz_out'

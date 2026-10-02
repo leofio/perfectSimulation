@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 from scipy.stats import chisquare
 
-from perfectSim.lattice import make_lattice, triangular
+from perfectSim.lattice.lattice import make_lattice, triangular
 from perfectSim.models.hardCore import HardCoreGeneral
 from perfectSim.random.bounding_cftp import bounding_cftp
 

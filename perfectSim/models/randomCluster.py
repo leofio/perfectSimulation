@@ -4,7 +4,7 @@ Random Cluster model.
 
 import numpy as np
 from numba import njit
-from perfectSim.lattice import Lattice
+from perfectSim.lattice.lattice import Lattice
 from perfectSim.models.baseModel import MonotoneModel
 
 @njit(cache=True)

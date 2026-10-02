@@ -4,7 +4,7 @@ Test Hard Core Bipartite
 import random
 import numpy as np
 import pytest
-from perfectSim.lattice import grid, boundary_values
+from perfectSim.lattice.lattice import grid, boundary_values
 from perfectSim.models.hardCore import HardCoreBipartite
 
 @pytest.fixture

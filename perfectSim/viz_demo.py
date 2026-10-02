@@ -2,7 +2,9 @@
 import os
 os.environ.setdefault('MPLBACKEND', 'Agg')
 import numpy as np
-from perfectSim.lattice import grid, triangular, torus, boundary_values, make_lattice, hexagonal, complete, FREE, d_ary_tree
+import networkx as nx
+from perfectSim.lattice.lattice import grid, triangular, torus, boundary_values, hexagonal, complete
+from perfectSim.lattice.latticenx import from_nx
 from perfectSim.models.ising import Ising
 from perfectSim.models.hardCore import HardCoreBipartite
 from perfectSim.models.randomCluster import MonotoneRandomCluster
@@ -24,10 +26,10 @@ save(animate(lat, states, boundary=bd, model=model, edge_rule='aligned'),
      f'{out}/ising.gif', fps=10, dpi=60)
 
 # 2. Triangular lattice with a boundary (band follows the parallelogram).
-tree = d_ary_tree(5, 3)
-tbd = boundary_values(tree, 1)
-draw(tree, rng.choice([-1, 1], tree.n_sites), boundary=tbd, edge_rule='aligned',
-     title='tree').fig.savefig(f'{out}/tree.png', dpi=80)
+tri = triangular(5, 3, ghosts=True)
+tbd = boundary_values(tri, 1)
+draw(tri, rng.choice([-1, 1], tri.n_sites), boundary=tbd, edge_rule='aligned',
+     title='triangular').fig.savefig(f'{out}/triangular.png', dpi=80)
 
 # 3. Torus: wrap-around edges drawn as stubs.
 tor = torus(8)
@@ -70,81 +72,35 @@ states, updated = forward_trajectory(kn_rc)
 kn_anim = animate(kn, edge_states=states)
 save(kn_anim, f'{out}/kn_rc.gif', fps=10)
 
-# L-shape
+# L-Shape
+internal_coords = set(
+    [(r, c) for r in range(2) for c in range(5)] + 
+    [(r, c) for r in range(2, 5) for c in range(2)]
+)
 
-# 1. Define the L-shape coordinates (r, c)
-# Top part: 5 wide (cols 0-4), 2 high (rows 0-1)
-# Short part: 2 wide (cols 0-1), 3 high (rows 2-4)
-internal_coords = set()
-for r in range(2):
-    for c in range(5):
-        internal_coords.add((r, c))
-for r in range(2, 5):
-    for c in range(2):
-        internal_coords.add((r, c))
-
-# 2. Find boundary (ghost) coordinates surrounding the shape
-ghost_coords = set()
+G = nx.Graph()
+for r, c in internal_coords:
+    G.add_node((r, c), pos=(r, c)) # boundary is False by default
 for r, c in internal_coords:
     for dr, dc in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
         nr, nc = r + dr, c + dc
+        
         if (nr, nc) not in internal_coords:
-            ghost_coords.add((nr, nc))
+            if not G.has_node((nr, nc)):
+                G.add_node((nr, nc), pos=(nr, nc), boundary=True)
+                
+        G.add_edge((r, c), (nr, nc))
 
-internal_list = sorted(list(internal_coords))
-ghost_list = sorted(list(ghost_coords))
-
-n_sites = len(internal_list)
-n_boundary = len(ghost_list)
-
-# Map coordinate tuples to sequential node IDs
-coord_to_id = {}
-for i, coord in enumerate(internal_list):
-    coord_to_id[coord] = i
-for i, coord in enumerate(ghost_list):
-    coord_to_id[coord] = n_sites + i
-
-# 3. Allocate lattice arrays
-pos = np.empty((n_sites + n_boundary, 2), dtype=np.float32)
-colour = np.empty(n_sites, dtype=np.int8)
-nbr = np.full((n_sites, 4), FREE, dtype=np.int32)
-
-for (r, c), v in coord_to_id.items():
-    pos[v] = (r, c)  # Stored as (row, col). The renderer naturally maps this to (x, y)
-    
-    if v < n_sites:
-        # Standard grid bipartite colouring
-        colour[v] = (r + c) % 2
-        
-        # Populate neighbors up to max degree of 4
-        valid_nbrs = []
-        for dr, dc in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
-            nr, nc = r + dr, c + dc
-            if (nr, nc) in coord_to_id:
-                valid_nbrs.append(coord_to_id[(nr, nc)])
-        
-        nbr[v, :len(valid_nbrs)] = valid_nbrs
-
-# 4. Construct the Lattice object
-l_lat = make_lattice(
-    n_sites=n_sites, 
-    nbr=nbr, 
-    is_bipartite=True, 
-    colour=colour, 
-    n_boundary=n_boundary, 
-    ghost_pos=pos[n_sites:], 
-    pos=pos
+l_lat = from_nx(
+    G, 
+    boundary_key='boundary', 
+    layout=lambda g: nx.get_node_attributes(g, 'pos')
 )
 
-# 5. Set boundary conditions using a vectorized lambda
-# Since pos stores (r, c), the arguments passed to the lambda are (r, c).
-# This rule sets the top/right to +1 and the bottom/left to -1 to force a domain wall.
 bd = boundary_values(
     l_lat, 
     lambda r, c: np.where((r > 2) | (c < 2), -1, 1)
 )
-
-# 6. Run simulation and animate
 ising_model = Ising(l_lat, beta=0.44, boundary=bd)
 states, updated = forward_trajectory(ising_model, steps=400, stride=4, seed=10)
 

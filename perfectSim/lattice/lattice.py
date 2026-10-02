@@ -2,7 +2,7 @@
 Lattices
 '''
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Optional, Union
 import numpy as np
 
@@ -15,7 +15,6 @@ class Lattice:
     nbr: np.ndarray, (n_sites, max_degree) nbr[v] contains the neighbours of v
     is_bipartite: bool, is the graph bipartite
     n_boundary: Optional[int], number of boundary vertices
-    ghost_pos: Optional[np.ndarray], (n_boundary, ndim) grid coords of boundary sites
     colour: Optional[np.ndarray], (n_sites,) array of 1s and 0s, required for bipartite graphs
     n_edges: Optional[int], number of edges
     edges: Optonal[np.ndarray], (n_edges, 2) mapping edge_id -> (site_u, site_v)
@@ -26,7 +25,6 @@ class Lattice:
     is_bipartite: bool
 
     n_boundary: Optional[int] = 0
-    ghost_pos: Optional[np.ndarray] = None
     colour: Optional[np.ndarray] = None
 
     n_edges: Optional[int] = 0
@@ -49,7 +47,13 @@ class Lattice:
     @property
     def null(self) -> int: return self.n_sites + self.n_boundary
 
-def make_lattice(n_sites, nbr, is_bipartite, colour = None, n_boundary=0, ghost_pos=None, pos=None) -> Lattice:
+    @property
+    def ghost_pos(self):
+        if self.n_boundary == 0 or self.pos is None:
+            return None
+        return self.pos[self.n_sites : self.n_sites + self.n_sites + self.n_boundary]
+
+def make_lattice(n_sites, nbr, is_bipartite, colour = None, n_boundary=0, pos=None) -> Lattice:
     nbr = np.asarray(nbr, dtype=np.int32)
     null = n_sites + n_boundary
     nbr = np.where(nbr == FREE, null, nbr).astype(np.int32)
@@ -78,7 +82,6 @@ def make_lattice(n_sites, nbr, is_bipartite, colour = None, n_boundary=0, ghost_
         is_bipartite=is_bipartite,
         colour=colour,
         n_boundary=n_boundary, 
-        ghost_pos=ghost_pos,
         n_edges=n_edges,
         edges=edges,
         pos=pos,
@@ -111,8 +114,7 @@ def _grid(L, M, offsets, is_bipartite, colour=None, periodic=False, ghosts=False
     site_pos_list = [(i, j) for i in range(L) for j in range(M)]
     ghost_pos_list = sorted(ghost, key=ghost.get)
     full_pos = np.array(site_pos_list + ghost_pos_list, dtype=np.float32)
-    ghost_coords = np.array(ghost_pos_list, dtype=np.float32) if ghost else None
-    return make_lattice(n, nbr, is_bipartite, colour=colour, n_boundary=len(ghost), ghost_pos=ghost_coords, pos=full_pos)
+    return make_lattice(n, nbr, is_bipartite, colour=colour, n_boundary=len(ghost), pos=full_pos)
 
 SQUARE = [(-1, 0), (1, 0), (0, -1), (0, 1)]
 TRIANGULAR = SQUARE + [(-1, 1), (1, -1)]
@@ -134,8 +136,6 @@ def grid(L, M=None, ghosts=False):
     colour = np.array([(i + j) % 2 for i in range(L) for j in range(M)], dtype=np.int8)
     return _grid(L, M, SQUARE, is_bipartite=True, colour=colour, ghosts=ghosts)
 
-from dataclasses import replace
-
 def triangular(L, M=None, ghosts=False):
     '''LxM triangular grid.'''
     M = L if M is None else M
@@ -147,13 +147,8 @@ def triangular(L, M=None, ghosts=False):
     ], dtype=np.float32)
     
     new_pos = lat.pos @ transform
-    
-    new_ghost_pos = lat.ghost_pos @ transform if lat.ghost_pos is not None else None
-    
-    return replace(lat, pos=new_pos, ghost_pos=new_ghost_pos)
-
-def hexagonal(L, M=None, ghosts=False):
-    M = L if M is None else M
+        
+    return replace(lat, pos=new_pos)
 
 def boundary_values(lat: Lattice, spec: Union[int, callable]):
     '''
@@ -187,9 +182,8 @@ def hexagonal(L, M=None, ghosts=False):
     lat = _grid(L, M, _hex_offsets, is_bipartite=True, colour=colour, ghosts=ghosts)
 
     new_pos = _hex_transform(lat.pos)
-    new_ghost_pos = _hex_transform(lat.ghost_pos) if lat.ghost_pos is not None else None
 
-    return replace(lat, pos=new_pos, ghost_pos=new_ghost_pos)
+    return replace(lat, pos=new_pos)
 
 def complete(n):
     '''Complete graph K_n: every site is a neighbour of every other site.'''

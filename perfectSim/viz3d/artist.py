@@ -15,7 +15,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import to_rgba
 from mpl_toolkits.mplot3d.art3d import Line3DCollection, Poly3DCollection
-from perfectSim.lattice import FREE, Lattice
+from perfectSim.lattice.lattice import FREE, Lattice
 from perfectSim.viz.frames import Frame
 from perfectSim.viz.palettes import Palette
 from .geometry import as_3d, edge_segments, orient, padded_hull_faces
