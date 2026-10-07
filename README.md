@@ -32,7 +32,7 @@ according to the model's true stationary distribution.
 ## Installation
 
 ```bash
-git clone https://github.com/<you>/perfectSimulation.git
+git clone https://github.com/leofio/perfectSimulation.git
 cd perfectSimulation
 pip install -r requirements.txt   # numpy, numba, matplotlib
 ```
